@@ -1,0 +1,245 @@
+Alyx Gray
+Bi624/Deduper
+10/23/2020
+
+############################################# THE PROBLEM #############################################
+
+Before sequencing, DNA fragments are amplified and adapter-ligated using PCR. PCR sometimes creates 
+duplicate reads that are present after sequencing. PCR duplicates in RNA-seq analysis will distort the
+results because duplicates are not actual biological reads, but artifacts of the sequence process.
+It's important to control for the PCR/sequencing reactions during analysis so variation in expressions
+are only biologically relevant.
+
+After sequencing, QC/trimming, and demultiplexing, reads are aligned to a reference and outputted into 
+a SAM file. These duplicates can be identified in a SAM file using these pieces of information:
+
+    1. UMI sequence. Duplicates stemming from the same PCR product will share the same UMI.
+        a. 96 unique UMIs (8 nucleotides, column 1:end)
+    2. Location of the aligned read. Duplicates will have the same chromosome and starting coordinate 
+       position.
+        a. Chromosome.
+        b. Position start.
+            i. Must account for soft clipping (found in CIGAR string).
+            ii. If "S" is set, subtract from the left-most consumed base position.
+    3. Strand specificity. Duplicates will arise from the same strand reading direction (forward or 
+       reverse).
+
+PCR duplicates identified in the reads by these characteristics need to be removed into a separate file.
+Data is from single-end sequencing and UMIs have been placed in QNAME of the header.
+
+############################################## FUNCTIONS ##############################################
+
+FUNCTION - ARGPARSE
+def get_args():
+    """
+    Will set a command line option to run arguments.
+    """
+    - Argument for the SAM file. Use the absolute file path.
+    - Argument for designating if file is paired end. Optional argument.
+    - Argument for the file containing the list of UMIs. Optional argument.
+    - Argument for printing useful help messages. Also prints an error message if script isn't capable
+      of handling the option chosen. 
+    return parse_args()
+
+FUNCTION - MAKE UMI DICTIONARY
+def umi_dict(file):
+    """
+    This function will read in a file containing the UMIs used for sequencing. It will output a 
+    dictionary containing as many elements as UMIs used.
+
+    Example input:      Example output:
+    CTGTTCAC            {CTGTTCAC:CTGTTCAC, ACGACTTG:ACGACTTG, ATCCATGG:ATCCATGG}
+    ACGACTTG
+    ATCCATGG
+    """
+    return(dictionary)
+
+FUNCTION - CHECK BITWISE FLAG FOR MAPPED READS
+def check_mapped(flag):
+    """
+    This function will identify the bitwise flag in the read and return a boolean value for if a read
+    is mapped or not.
+    
+    Examples:
+    check_mapped(4) = FALSE
+    check_mapped(0) = TRUE
+    """
+    return(boolean)
+
+FUNCTION - CHECK FOR UMI ERRORS
+def error_UMI(UMI):
+    """
+    This function will check for errors in the UMIs from the header lines of the query and subject 
+    reads. Correct UMIs will be present in the keys of the umi_dict. If the UMIs from the read do not 
+    match, this function will also write out the error read to an <UMI_error.sam>.  
+
+    Examples:
+    error_UMI(CTGTTCAC) = TRUE
+    error_UMI(CTGTTCAN) = FALSE (write to error file)
+    """
+    return(boolean)
+
+FUNCTION - WRITE UMI ERRORS TO NEW FILE
+def write_error(list):
+    """
+    If an error has been identified in the UMI, this function will take the list holding that read, 
+    open <UMI_error.sam>, write the record to the file, then close the file. Function will also clear 
+    the list where the error was located.  
+
+    Example:            Return:
+    error_UMI(s_read)   s_read = []
+    """
+    return(list)
+
+FUNCTION - PAIR THE UMIS FROM QUERY AND SUBJECT READS 
+def pair_UMI(string):
+    """
+    This function will take the UMIs from the header lines of the query and subject and pair them. The 
+    pair will be output as a string separated by ":" for the next function (check_UMI).
+
+    Example:                                Output:
+    pair = pair_UMI(CTGTTCAC, CTGTTCAC)     CTGTTCAC:CTGTTCAC
+    pair = pair_UMI(CTGTTCAC, ACGACTTG)     CTGTTCAC:ACGACTTG
+    """
+    return(pair)
+
+FUNCTION - CHECK IF UMI PAIR IS PRESENT IN UMI_DICT 
+def check_UMI(pair):
+    """
+    This function will take the output of pair_UMI and check if it is present in the umi_dict.
+
+    Example:
+    check_UMI(CTGTTCAC:CTGTTCAC) = TRUE
+    check_UMI(CTGTTCAC:ACGACTTG) = FALSE
+    """
+    return(boolean)
+
+FUNCTION - CHECK IF SOFT-CLIPPING IS PRESENT
+def check_cigar(cigar_string):
+    """
+    This function will find the CIGAR string and identify if soft-clipping was present in the aligned 
+    sequence using a regex. It will return a true for presence and false for absence. 
+    
+    Examples:
+    check_cigar(71M) = FALSE
+    check_cigar(5S71M) = TRUE
+    """
+    return(boolean)
+
+FUNCTION - CHANGE POSITION START IF SOFT-CLIPPING IS PRESENT
+def change_pos(position, cigar):
+    """
+    This function takes the position start and the CIGAR string and then changes the position start
+    coordinate based on the integer to the left of the "S" (if present).
+
+    Examples:    
+    change_pos(76765942, 71M) = 76765942
+    change_pos(76765947, 5S71M) = 76765942
+    change_pos(76720102, 99M) = 76720102
+    change_pos(76720104, 2S71M2S) = 76720102
+    """
+    return(integer)
+
+FUNCTION - CHECK BITWISE FLAG FOR REVERSE COMPLEMENTARITY
+def check_revcomp(string):
+    """
+    This function will identify the bitwise flag in the read and return a boolean value if the read is
+    the reverse complement strand to the reference or not.
+    
+    Examples:
+    check_revcomp(0) = FALSE
+    check_revcomp(16) = TRUE
+    """
+    return(boolean)
+
+FUNCTION - WRITE DUPLICATES TO NEW FILE 
+def write_duplicate(list):
+    """
+    If a duplicate has been identified, this function will take the list holding the duplicate, open 
+    <duplicates_file.sam>, write the record to the file, then close the file. Function will also clear 
+    the list where the previous duplicate was.
+
+    Example:            Return:
+    write_duplicate(q_read)  q_read = []
+    """
+    return(list)
+
+########################################### GLOBAL VARIABLES ###########################################
+
+- Initialize a dictionary of the UMIs by calling the function umi_dict.
+- Initialize a list for holding the current record (q_read).
+- Initialize a list for holding the record being compared for duplication (s_read).
+- Initialize query reads counter.
+- Initialize subject reads counter.
+- Initialize mapped reads counter.
+- Initialize unmapped reads counter.
+- Initialize duplicate counter.
+- Initialize UMI error counter.
+
+############################################# MAIN SCRIPT ##############################################
+
+- Open and read in the SAM file.
+    - Get rid of the headerlines with the "@"
+        - Append the first read into the q_read list.
+        - Increment query reads counter.
+        - Append the next read into the list s_read.
+        - Increment subject reads counter.
+            - Call the function check_mapped on q_read.
+            - Call the function check_mapped on s_read.
+            - If the check_mapped function returns true for both q_read and s_read:
+                - Isolate the chromosome from q_read and assign it the name q_chrom.
+                - Isolate the chromosome from s_read and assign it the name s_chrom.
+                - If q_chrom is the same as s_chrom, then do the following:
+                    - Call the function error_UMI.
+                    - If error_UMI returns false:
+                        - Call the function pair_UMI and name it pair.
+                        - Call the function check_UMI to see if the pair is present in umi_dict.
+                        - If check_UMI returns true (is the same UMI and is in umi_dict):
+                            - Isolate the starting position from q_read and assign it q_pos.
+                            - Isolate the starting position from s_read and assign it s_pos.
+                            - Isolate the CIGAR string from q_read and assign it q_cigar.
+                            - Isolate the CIGAR string from s_read and assign it s_cigar.
+                            - If q_pos and s_pos are the same, then do the following:
+                                - Call the function check_revcomp to see the strand specificity of q_read.
+                                - Call the function check_revcomp to see the strand specificity of s_read.
+                                - If both check_revcomp functions return true or false:
+                                    - Increment duplicate counter.
+                                    - Call the function write_duplicate on s_read list.
+                                - If the check_revcomp functions returns different values:
+                                    - Clear the s_read list and move to the next read in the file.
+                                    - Increment read counter.
+                            - If q_pos and s_pos are different:
+                                - Call the function check_cigar to see if soft-clipping is present in q_read.
+                                - Call the function check_cigar to see if soft-clipping is present in s_read.
+                                - If check_cigar returns true for q_read or s_read:
+                                    - Call the function change_pos on q_pos or s_pos (whichever check_cigar returned as true).
+                                    - If change_pos is the same as the other read position (q_pos or s_pos):
+                                        - Increment duplicate counter.
+                                        - Call the function write_duplicate on s_read list.
+                                - If check_cigar returns false for both q_read and s_read:
+                                    - Clear the s_read list and move to the next s_read.
+                                    - Increment read counter.
+                        - If check_UMI returns false (UMIs do not match and pair is not in umi_dict):
+                            - Clear s_read list and move to the next s_read.
+                            - Increment read counter.
+                    - If error_UMI returns true:
+                        - Call the function write_error.
+                        - Increment UMI error counter.
+                        - Move to the next read in the file.
+                - If q_chrom is different from s_chrom:
+                    - Clear s_read list and move to the next read in the file.
+                    - Increment read counter.
+                    - Increment different chromosome counter.
+                    - If different chromosome counter is greater than 5:
+                        - Clear the q_read and s_read lists and move to the next iteration in the file.
+                        - Increment read counter.
+                    - If different chromosome counter is less than 5:
+                        - Continue through the loop.
+            - If the check_mapped function returns false for q_read but true for s_read:
+                - Increment unmapped counter.
+                - Clear the q_read and s_read lists and move to the next iteration in the file.
+                - Increment read counter.
+            - If the check_mapped function returns true for q_read but false for s_read:
+                - Increment unmapped counter.
+                - Clear the s_read list and move to the next iteration in the file.
+                - Increment read counter.
